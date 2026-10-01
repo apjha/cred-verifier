@@ -11,18 +11,50 @@ at rotation time:
 * *How often should I rotate it?*
 * *Can I generate a batch of compliant passwords for all my accounts right now?*
 
-Everything is plain Python 3.9+ with **no third-party dependencies**, so it
-runs on hardened jump hosts and PAM workstations where `pip install` from the
-internet isn't allowed.
+## Quick start: one file, no install
+
+**[`cred-toolkit.html`](cred-toolkit.html)** is the whole toolkit in a
+single offline web page. It contains both the exposure framework and the bulk
+password generator.
+
+1. Open the file on GitHub, click **Download raw file**, and save it, for
+   example to your jump host or a USB stick.
+2. Double-click it to open it in any modern browser (Edge, Chrome, Firefox,
+   Safari). It doesn't need Python, Office, macros, admin rights or an
+   internet connection.
+3. Describe the system on the left and read the recommendation on the right.
+   Then set the complexity rules, click **Generate**, then **Copy for Excel**,
+   and paste into cell A1.
+
+Why a web page and not an Excel macro or Office Script:
+
+| | HTML page | VBA macro | Office Script |
+|---|---|---|---|
+| Runs where | Any browser, offline | Desktop Excel | Excel on the web (Microsoft 365 business) |
+| Blocked by default policy? | No | Yes: macros in downloaded files are blocked (Mark of the Web) | Often turned off by admins |
+| Secure randomness | `crypto.getRandomValues` | `Rnd` is **not** cryptographically secure | Not guaranteed |
+| Can leak data? | No: a Content-Security-Policy in the file blocks every network request | Can call out | Runs in Microsoft's service |
+| Reviewable | One readable text file | Hidden inside a workbook | Stored in OneDrive |
+
+The page holds nothing between sessions: no cookies and no local storage.
+Reloading it clears everything.
+
+The same logic is also available as Python command-line tools (below) for
+scripting and automation. A test checks that the page and the Python code give
+identical results.
 
 | Tool | What it does |
 |------|--------------|
-| [`cred-exposure`](#1-exposure-framework-cred-exposure) | Turns a system's exposure profile into a required entropy, a minimum length per character set, and a rotation period. |
-| [`cred-passgen`](#2-bulk-password-generator-cred-passgen) | Generates many passwords at once under your complexity rules and outputs a table that pastes straight into Excel. Uses the exposure framework to pick the length and fill in a "rotate by" date. |
+| [`cred-toolkit.html`](cred-toolkit.html) | Both tools in one offline page (recommended). |
+| [`cred-exposure`](#1-exposure-framework-cred-exposure) | Command-line version of the exposure framework: required entropy, minimum length per character set, rotation period. |
+| [`cred-passgen`](#2-bulk-password-generator-cred-passgen) | Command-line bulk generator with Excel-friendly output. |
 
 ---
 
-## Installation
+## Installing the command-line tools (optional)
+
+The command-line tools need Python 3.9+ and nothing outside the standard
+library.
 
 ```bash
 git clone https://github.com/apjha/cred-verifier.git
@@ -225,9 +257,16 @@ value, not an estimate.
 python3 -m unittest discover -s tests -t .
 ```
 
+`tests/test_html_parity.py` runs the page's calculation code under Node.js and
+checks it against the Python package on about a thousand exposure profiles.
+It is skipped if `node` isn't installed. If you change a constant, change it
+in both `credverifier/exposure.py` and the `<script id="core">` block of
+`cred-toolkit.html`.
+
 Layout:
 
 ```
+cred-toolkit.html  single-file offline web version of both tools
 credverifier/
   exposure.py   exposure framework + cred-exposure CLI
   entropy.py    exact entropy counting for policy-constrained passwords

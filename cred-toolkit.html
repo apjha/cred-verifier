@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- No network access at all: this page cannot load or send anything. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Credential Toolkit</title>
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #d9dde3;
+  --text: #1b2430;
+  --muted: #5d6877;
+  --accent: #1f6f78;
+  --accent-text: #ffffff;
+  --accent-soft: #e2f1f2;
+  --good: #1e7a46;
+  --good-soft: #e3f4ea;
+  --warn: #9a5b00;
+  --warn-soft: #fdf1dc;
+  --bad: #b3261e;
+  --bad-soft: #fbe5e3;
+  --mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161c; --surface: #1a2029; --surface-2: #222a35; --border: #333d4b;
+    --text: #e4e8ee; --muted: #9aa5b4; --accent: #4fb3bd; --accent-text: #0d1a1c;
+    --accent-soft: #183236; --good: #5ccb8b; --good-soft: #17301f; --warn: #e6a74a;
+    --warn-soft: #33270f; --bad: #f08a80; --bad-soft: #3a1c1a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161c; --surface: #1a2029; --surface-2: #222a35; --border: #333d4b;
+  --text: #e4e8ee; --muted: #9aa5b4; --accent: #4fb3bd; --accent-text: #0d1a1c;
+  --accent-soft: #183236; --good: #5ccb8b; --good-soft: #17301f; --warn: #e6a74a;
+  --warn-soft: #33270f; --bad: #f08a80; --bad-soft: #3a1c1a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+header.top h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+header.top p { margin: 4px 0 0; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: var(--good-soft); color: var(--good); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 2px; display: flex; align-items: center; gap: 8px; }
+.card h2 .step { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-text); font-size: 12px; }
+.card .sub { color: var(--muted); margin: 0 0 14px; font-size: 13px; }
+.full { grid-column: 1 / -1; }
+
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+@media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+label.lbl { font-weight: 600; font-size: 12.5px; }
+.hint { color: var(--muted); font-size: 12px; min-height: 1em; }
+input[type=number], input[type=text], select, textarea {
+  width: 100%; font: inherit; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+}
+textarea { resize: vertical; min-height: 84px; font-family: var(--mono); font-size: 13px; }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input:disabled { opacity: .6; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.check { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 520px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.tile .k { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tile .v { font-size: 24px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tile .u { font-size: 12px; color: var(--muted); }
+.driver { padding: 8px 12px; border-radius: 6px; background: var(--accent-soft); margin-bottom: 12px; font-size: 13px; }
+.factors { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+.factors li { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+.factors li.none { background: var(--good-soft); color: var(--good); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--surface-2); }
+td.num, th.num { text-align: right; }
+.notes { margin: 12px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.notes li { margin: 3px 0; }
+.attack { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; font-size: 13px; margin-bottom: 12px; }
+.attack .bar { align-self: center; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.attack .bar span { display: block; height: 100%; background: var(--accent); }
+
+.gen-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; }
+@media (max-width: 900px) { .gen-layout { grid-template-columns: minmax(0, 1fr); } }
+.classes { display: grid; grid-template-columns: auto 1fr 90px; gap: 8px 12px; align-items: center; }
+.classes .cname { font-weight: 600; }
+.classes .cset { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.classes input[type=number] { padding: 5px 8px; }
+fieldset { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+legend { font-weight: 600; font-size: 12.5px; margin-bottom: 8px; padding: 0; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 12px; }
+button { font: inherit; font-weight: 600; border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.danger { color: var(--bad); }
+.status { padding: 9px 12px; border-radius: 6px; font-size: 13px; margin-top: 4px; }
+.status.ok { background: var(--good-soft); color: var(--good); }
+.status.warn { background: var(--warn-soft); color: var(--warn); }
+.status.err { background: var(--bad-soft); color: var(--bad); }
+.status.info { background: var(--surface-2); color: var(--muted); }
+.toast { color: var(--good); font-size: 13px; font-weight: 600; }
+.table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+.table-scroll table td, .table-scroll table th { border-bottom-color: var(--border); }
+.table-scroll tr:last-child td { border-bottom: 0; }
+td.pw { font-family: var(--mono); font-size: 13.5px; letter-spacing: .02em; }
+.masked td.pw span { filter: blur(5px); transition: filter .1s; }
+.masked tr:hover td.pw span { filter: none; }
+.yes { color: var(--good); font-weight: 600; }
+.no { color: var(--bad); font-weight: 600; }
+.empty { padding: 28px; text-align: center; color: var(--muted); }
+footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
+footer details { margin-top: 8px; }
+footer summary { cursor: pointer; font-weight: 600; }
+footer code { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Credential Toolkit</h1>
+      <p>Size, rotate and generate passwords for privileged accounts based on how exposed the system is.</p>
+    </div>
+    <span class="badge" title="A Content-Security-Policy in this file blocks all network requests">● Offline: nothing leaves this page</span>
+  </header>
+
+  <div class="grid">
+    <!-- ============================== Profile ============================== -->
+    <section class="card" aria-labelledby="h-profile">
+      <h2 id="h-profile"><span class="step">1</span>Exposure profile</h2>
+      <p class="sub">Describe the system and account. The recommendation on the right updates as you go.</p>
+      <div class="fields">
+        <div class="field wide">
+          <label class="lbl" for="exposure">Where can the login be reached from?</label>
+          <select id="exposure"></select>
+          <span class="hint" id="exposure-hint"></span>
+        </div>
+        <div class="field wide">
+          <label class="lbl" for="privilege">How privileged is the account?</label>
+          <select id="privilege"></select>
+          <span class="hint" id="privilege-hint"></span>
+        </div>
+        <div class="field">
+          <label class="lbl" for="lockoutThreshold">Lockout after N failed attempts</label>
+          <input id="lockoutThreshold" type="number" min="0" value="0">
+          <span class="hint">0 = never locks</span>
+        </div>
+        <div class="field">
+          <label class="lbl" for="lockoutMinutes">Lockout duration (minutes)</label>
+          <input id="lockoutMinutes" type="number" min="0" value="30">
+          <span class="hint">0 = admin must unlock</span>
+        </div>
+        <div class="field">
+          <label class="lbl" for="rateLimit">Login attempts allowed per minute</label>
+          <input id="rateLimit" type="number" min="0" step="any" value="0">
+          <span class="hint">0 = unlimited or unknown</span>
+        </div>
+        <div class="field">
+          <label class="lbl" for="sharedWith">People who know the password</label>
+          <input id="sharedWith" type="number" min="1" value="1">
+          <span class="hint">&nbsp;</span>
+        </div>
+        <div class="field wide">
+          <label class="lbl" for="hash">How does the system store the password?</label>
+          <select id="hash"></select>
+          <span class="hint" id="hash-hint"></span>
+        </div>
+        <div class="field wide">
+          <label class="lbl" for="attacker">Which attacker are you planning for?</label>
+          <select id="attacker"></select>
+          <span class="hint" id="attacker-hint"></span>
+        </div>
+        <div class="field wide">
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="mfa"> Login requires MFA</label>
+            <label class="check"><input type="checkbox" id="monitored"> Failed logins are alerted on and acted upon</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="rotationDays">Rotation period (days)</label>
+          <input id="rotationDays" type="number" min="1" placeholder="recommended">
+          <span class="hint">Leave blank to use the recommendation</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ Assessment ============================ -->
+    <section class="card" aria-labelledby="h-assess" aria-live="polite">
+      <h2 id="h-assess"><span class="step">→</span>Recommendation</h2>
+      <p class="sub">For a randomly generated password.</p>
+      <div class="tiles">
+        <div class="tile"><div class="k">Min length</div><div class="v" id="t-length">–</div><div class="u">full character set</div></div>
+        <div class="tile"><div class="k">Rotate every</div><div class="v" id="t-rotation">–</div><div class="u" id="t-rotation-u">days</div></div>
+        <div class="tile"><div class="k">Entropy needed</div><div class="v" id="t-bits">–</div><div class="u">bits</div></div>
+        <div class="tile"><div class="k">Risk score</div><div class="v" id="t-score">–</div><div class="u">of 13</div></div>
+      </div>
+      <div class="driver" id="driver"></div>
+      <div class="attack" id="attack"></div>
+      <ul class="factors" id="factors"></ul>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Character set</th><th class="num">Min length</th><th class="num">Avg crack time</th></tr></thead>
+          <tbody id="lengths"></tbody>
+        </table>
+      </div>
+      <ul class="notes" id="notes"></ul>
+    </section>
+
+    <!-- ============================= Generator ============================= -->
+    <section class="card full" aria-labelledby="h-gen">
+      <h2 id="h-gen"><span class="step">2</span>Generate passwords</h2>
+      <p class="sub">Set the complexity rules the target system enforces, then generate a batch and paste it into Excel.</p>
+      <div class="gen-layout">
+        <div>
+          <fieldset>
+            <legend>Character classes and minimum counts</legend>
+            <div class="classes" id="classes"></div>
+          </fieldset>
+          <div class="fields">
+            <div class="field">
+              <label class="lbl" for="symbolSet">Symbols the system accepts</label>
+              <input id="symbolSet" type="text" spellcheck="false" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="lbl" for="exclude">Never use these characters</label>
+              <input id="exclude" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. ;,&amp;">
+            </div>
+            <div class="field wide">
+              <div class="checks">
+                <label class="check"><input type="checkbox" id="noAmbiguous"> No look-alikes (I l 1 | O 0 o)</label>
+                <label class="check"><input type="checkbox" id="startWithLetter"> Must start with a letter</label>
+                <label class="check"><input type="checkbox" id="excelSafe" checked> Excel-safe first character</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="fields">
+            <div class="field wide">
+              <label class="check"><input type="checkbox" id="useProfile" checked> Apply the exposure profile (length, rotation date)</label>
+            </div>
+            <div class="field">
+              <label class="lbl" for="length">Length</label>
+              <input id="length" type="number" min="1" max="256" value="16">
+              <label class="check hint"><input type="checkbox" id="autoLength" checked> Use recommended</label>
+            </div>
+            <div class="field">
+              <label class="lbl" for="count">How many</label>
+              <input id="count" type="number" min="1" max="1000" value="10">
+              <span class="hint" id="count-hint">&nbsp;</span>
+            </div>
+            <div class="field wide">
+              <label class="lbl" for="labels">Account names (optional, one per line)</label>
+              <textarea id="labels" spellcheck="false" placeholder="root@db01&#10;sa@sql02&#10;admin@fw01"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="status info" id="policy-status"></div>
+      <div class="actions">
+        <button class="primary" id="btn-generate">Generate</button>
+        <button id="btn-copy" disabled>Copy for Excel</button>
+        <button id="btn-csv" disabled>Download CSV</button>
+        <button class="danger" id="btn-clear" disabled>Clear</button>
+        <label class="check"><input type="checkbox" id="header" checked> Include header row</label>
+        <label class="check"><input type="checkbox" id="mask"> Blur on screen</label>
+        <span class="toast" id="toast" role="status"></span>
+      </div>
+      <div class="table-scroll" id="result"><div class="empty">Generated passwords appear here.</div></div>
+    </section>
+  </div>
+
+  <footer>
+    In Excel, set the target column's format to <b>Text</b> before pasting. Once the passwords are in your vault,
+    clear this table and your clipboard, and delete the spreadsheet.
+    <details>
+      <summary>How the numbers are worked out</summary>
+      <p>The attacker gets a budget of <i>G</i> guesses during one rotation period. A random password with <i>H</i> bits of entropy
+      falls with probability <i>G</i>/2<sup><i>H</i></sup>, so the page requires <i>H</i> ≥ log₂(<i>G</i>/<i>p</i>).
+      <i>G</i> is worked out for online guessing (the attempt rate after lockout and rate limiting, over the rotation period,
+      or 7 days if failed logins are monitored) and for offline cracking of a stolen hash (the cracking speed for that hash type
+      over the rotation period). The larger requirement wins. <i>p</i> comes from the privilege level, divided by how likely
+      the system is to be attacked at all. MFA relaxes the online target by 100× but not the offline one.
+      The rotation period comes from an additive risk score.</p>
+      <p>The entropy of generated passwords is counted exactly: minimum-count and first-character rules shrink the set of possible
+      passwords, so the page doesn't use length × log₂(alphabet). Passwords come from <code>crypto.getRandomValues</code> with
+      unbiased sampling. All constants match <code>credverifier/exposure.py</code> in this repository. They are deliberately round,
+      conservative assumptions.</p>
+    </details>
+  </footer>
+</div>
+
+<script id="core">
+/* Pure logic, no DOM. Mirrors credverifier/exposure.py, entropy.py and passgen.py. */
+var CredCore = (function () {
+  "use strict";
+
+  // exposure -> likelihood of attack, un-throttled online guesses/s, score points
+  var EXPOSURE = {
+    internet: { likelihood: 1.0, rate: 10, score: 3, label: "Internet", desc: "Reachable from the public internet (SSH/RDP, VPN portal, cloud console, web admin)" },
+    partner: { likelihood: 0.3, rate: 10, score: 2, label: "Partner / DMZ", desc: "DMZ / extranet / reachable by vendors or partners" },
+    internal: { likelihood: 0.1, rate: 100, score: 1, label: "Internal network", desc: "Corporate network only (attacker needs a foothold first)" },
+    isolated: { likelihood: 0.01, rate: 1, score: 0, label: "Isolated", desc: "Segmented or air-gapped; console, jump host or PAM session only" }
+  };
+  // privilege -> acceptable compromise probability per period, length floor, score points
+  var PRIVILEGE = {
+    standard: { p: 1e-4, floor: 12, score: 0, label: "Standard", desc: "Ordinary user or low-impact application account" },
+    elevated: { p: 1e-5, floor: 14, score: 1, label: "Elevated", desc: "Local admin, application admin, sensitive data access" },
+    privileged: { p: 1e-6, floor: 16, score: 2, label: "Privileged", desc: "Server root/Administrator, DBA, network device admin, service accounts with broad rights" },
+    critical: { p: 1e-7, floor: 20, score: 3, label: "Critical", desc: "Domain/Enterprise admin, cloud root, break-glass, PAM/vault master, HSM" }
+  };
+  // hash storage -> offline guesses/s for ~8 high-end GPUs (null = not the relevant threat)
+  var HASH = {
+    plaintext: { rate: null, score: 2, label: "Plaintext / reversible", desc: "Stored in clear text or reversibly encrypted (config files, scripts, LDAP reversible)" },
+    fast: { rate: 2e12, score: 1, label: "Fast hash", desc: "Fast/unsalted hashes: NTLM, MD5, SHA-1, single-round SHA-2, many network devices" },
+    iterated: { rate: 3e7, score: 0, label: "Salted & iterated", desc: "Salted & iterated: sha512crypt, PBKDF2 (<600k iterations), Kerberos AES keys" },
+    slow: { rate: 1e6, score: 0, label: "Slow hash", desc: "Memory/CPU-hard: bcrypt (cost>=10), scrypt, Argon2, PBKDF2 (>=600k iterations)" },
+    unknown: { rate: 2e12, score: 1, label: "Unknown", desc: "Not known - assumed to be fast" },
+    none: { rate: null, score: 0, label: "Not obtainable", desc: "No hash an attacker could realistically obtain (e.g. verified only inside an HSM)" }
+  };
+  var ATTACKER = {
+    opportunistic: { mult: 0.1, label: "Opportunistic", desc: "Single GPU, commodity tooling" },
+    organized: { mult: 1.0, label: "Organized", desc: "Criminal group / ransomware crew with a GPU rig or rented cloud GPUs" },
+    "nation-state": { mult: 100.0, label: "Nation-state", desc: "Large dedicated cracking clusters" }
+  };
+  var MFA_ONLINE_FACTOR = 100;
+  var MONITORED_WINDOW_DAYS = 7;
+  var ADMIN_UNLOCK_SECONDS = 86400;
+  var MAX_PROBABILITY = 0.5;
+  var ROTATION_TIERS = [[10, 30], [7, 60], [5, 90], [3, 180], [0, 365]];
+  var CHARSETS = [["digits only (PIN)", 10], ["lowercase letters", 26], ["letters + digits", 62], ["letters + digits + symbols", 94]];
+  var DICEWARE_WORDS = 7776;
+  var DAY = 86400;
+
+  function defaultProfile() {
+    return { exposure: "internal", privilege: "privileged", lockoutThreshold: 0, lockoutMinutes: 30, rateLimit: 0,
+             mfa: false, hash: "unknown", attacker: "organized", sharedWith: 1, monitored: false, rotationDays: null };
+  }
+
+  function validate(p) {
+    [["exposure", EXPOSURE], ["privilege", PRIVILEGE], ["hash", HASH], ["attacker", ATTACKER]].forEach(function (t) {
+      if (!Object.prototype.hasOwnProperty.call(t[1], p[t[0]])) throw new Error(t[0] + " must be one of: " + Object.keys(t[1]).join(", "));
+    });
+    if (p.lockoutThreshold < 0 || p.lockoutMinutes < 0) throw new Error("Lockout values cannot be negative");
+    if (p.rateLimit < 0) throw new Error("Rate limit cannot be negative");
+    if (!(p.sharedWith >= 1)) throw new Error("At least one person must know the password");
+    if (p.rotationDays != null && p.rotationDays < 1) throw new Error("Rotation period must be at least 1 day");
+  }
+
+  function lengthFor(bits, alphabet, floor) {
+    return Math.max(Math.ceil(bits / Math.log2(alphabet)), floor || 0);
+  }
+
+  function onlineRate(p) {
+    var r = EXPOSURE[p.exposure].rate;
+    if (p.lockoutThreshold > 0) {
+      var w = p.lockoutMinutes > 0 ? p.lockoutMinutes * 60 : ADMIN_UNLOCK_SECONDS;
+      r = Math.min(r, p.lockoutThreshold / w);
+    }
+    if (p.rateLimit > 0) r = Math.min(r, p.rateLimit / 60);
+    return r;
+  }
+
+  function offlineRate(p) {
+    var b = HASH[p.hash].rate;
+    return b == null ? null : b * ATTACKER[p.attacker].mult;
+  }
+
+  function riskScore(p) {
+    var f = [
+      [EXPOSURE[p.exposure].score, "exposure: " + p.exposure],
+      [PRIVILEGE[p.privilege].score, "privilege: " + p.privilege],
+      [HASH[p.hash].score, "hash storage: " + p.hash],
+      [p.mfa ? 0 : 1, "no MFA"],
+      [(p.lockoutThreshold || p.rateLimit) ? 0 : 1, "no lockout / rate limit"],
+      [p.monitored ? 0 : 1, "failed logins not monitored"]
+    ];
+    if (p.sharedWith > 5) f.push([2, "shared by " + p.sharedWith + " people"]);
+    else if (p.sharedWith > 1) f.push([1, "shared by " + p.sharedWith + " people"]);
+    var score = 0, factors = [];
+    f.forEach(function (x) { score += x[0]; if (x[0]) factors.push("+" + x[0] + " " + x[1]); });
+    return { score: score, factors: factors };
+  }
+
+  function recommendedRotation(p, score) {
+    var days = 365;
+    for (var i = 0; i < ROTATION_TIERS.length; i++) if (score >= ROTATION_TIERS[i][0]) { days = ROTATION_TIERS[i][1]; break; }
+    if (p.hash === "plaintext") days = Math.min(days, 30);
+    return days;
+  }
+
+  function bitsFor(guesses, prob) {
+    if (guesses <= 0) return 0;
+    return Math.max(Math.log2(guesses / prob), 0);
+  }
+
+  function round1(x) { return Math.round(x * 10) / 10; }
+
+  function assess(p) {
+    validate(p);
+    var rs = riskScore(p);
+    var rec = recommendedRotation(p, rs.score);
+    var days = p.rotationDays || rec;
+    var period = days * DAY;
+    var pr = PRIVILEGE[p.privilege];
+    var prob = Math.min(pr.p / EXPOSURE[p.exposure].likelihood, MAX_PROBABILITY);
+
+    var onRate = onlineRate(p);
+    var onWindow = p.monitored ? Math.min(period, MONITORED_WINDOW_DAYS * DAY) : period;
+    var pOnline = Math.min(prob * (p.mfa ? MFA_ONLINE_FACTOR : 1), MAX_PROBABILITY);
+    var onBits = bitsFor(onRate * onWindow, pOnline);
+
+    var offRate = offlineRate(p);
+    var offBits = offRate ? bitsFor(offRate * period, prob) : 0;
+
+    var required = Math.ceil(Math.max(onBits, offBits));
+    var lengths = {};
+    CHARSETS.forEach(function (c) { lengths[c[0]] = lengthFor(required, c[1], pr.floor); });
+    var words = Math.max(Math.ceil(required / Math.log2(DICEWARE_WORDS)), 4);
+
+    var notes = [];
+    if (p.hash === "plaintext") notes.push("The password is stored in clear text or reversibly: anyone who reads that store has it, whatever its length. Rotation (ideally after every use) and moving it into a vault are the controls that matter.");
+    if (p.hash === "fast" || p.hash === "unknown") notes.push("Fast or unknown hashing makes offline cracking the dominant threat. Moving to a slow hash (bcrypt/scrypt/Argon2) or enforcing MFA on the account shortens the required length.");
+    if (p.exposure === "internet" && !p.mfa) notes.push("An internet-reachable privileged login without MFA is a finding in its own right.");
+    if (p.sharedWith > 1) notes.push("Shared credentials: rotate whenever someone who knows it changes role or leaves, and prefer per-person accounts or PAM check-out with rotate-on-check-in.");
+    if (p.privilege === "critical") notes.push("Break-glass / critical credentials should also be rotated after every use.");
+    if (p.rotationDays && p.rotationDays > rec) notes.push("Rotation period " + p.rotationDays + "d is longer than the recommended " + rec + "d; the required length was increased to compensate for the longer attack window.");
+    notes.push("Always rotate immediately on suspected compromise, custodian change or vendor access ending.");
+
+    return {
+      profile: p, riskScore: rs.score, riskFactors: rs.factors, rotationDays: days, recommendedRotationDays: rec,
+      onlineRate: onRate, onlineBits: round1(onBits), offlineRate: offRate, offlineBits: round1(offBits),
+      requiredBits: required, minLengthFloor: pr.floor, lengths: lengths, passphraseWords: words, notes: notes,
+      driver: offBits >= onBits ? "offline cracking of a stolen hash" : "online guessing against the login"
+    };
+  }
+
+  function averageCrackSeconds(bits, rate) {
+    if (!rate) return null;
+    return Math.pow(2, bits - 1) / rate;
+  }
+
+  function humanDuration(s) {
+    if (s == null) return "n/a";
+    if (s < 1) return "< 1 second";
+    var years = s / (365 * DAY);
+    if (years >= 1e6) {
+      var parts = years.toExponential(1).split("e");
+      var exp = parts[1], sign = exp[0] === "-" ? "-" : "+", digits = exp.replace(/^[+-]/, "");
+      return parts[0] + "e" + sign + (digits.length < 2 ? "0" + digits : digits) + " years";
+    }
+    var units = [["years", 365 * DAY], ["days", DAY], ["hours", 3600], ["minutes", 60], ["seconds", 1]];
+    for (var i = 0; i < units.length; i++) {
+      if (s >= units[i][1]) {
+        var v = s / units[i][1];
+        return (v >= 10 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1)) + " " + units[i][0];
+      }
+    }
+    return Math.round(s) + " seconds";
+  }
+
+  function rateText(r) {
+    if (r == null) return "n/a";
+    function g3(x) {
+      if (x >= 1e5) return x.toExponential(2).replace(/\.?0+e/, "e");
+      return Number(x.toPrecision(3)).toString();
+    }
+    return r >= 1 ? g3(r) + "/s" : g3(r * 3600) + "/hour";
+  }
+
+  /* ---------------------------- entropy counting ---------------------------- */
+  // Exact number of strings of `length` over disjoint classes [[size, min], ...].
+  // f[j] = ordered ways to fill j positions with the classes processed so far.
+  var countCache = {};
+  function countFixed(length, classes) {
+    if (length < 0) return 0n;
+    var key = length + "|" + JSON.stringify(classes);
+    if (countCache[key] !== undefined) return countCache[key];
+    var binom = [[1n]];
+    for (var n = 1; n <= length; n++) {
+      var row = [1n];
+      for (var k = 1; k < n; k++) row.push(binom[n - 1][k - 1] + binom[n - 1][k]);
+      row.push(1n);
+      binom.push(row);
+    }
+    var f = new Array(length + 1).fill(0n);
+    f[0] = 1n;
+    classes.forEach(function (c) {
+      var S = BigInt(c[0]), m = c[1];
+      var pw = [1n];
+      for (var k = 1; k <= length; k++) pw.push(pw[k - 1] * S);
+      var g = new Array(length + 1).fill(0n);
+      for (var j = 0; j <= length; j++) {
+        var acc = 0n;
+        for (var k2 = m; k2 <= j; k2++) {
+          if (f[j - k2] !== 0n) acc += binom[j][k2] * pw[k2] * f[j - k2];
+        }
+        g[j] = acc;
+      }
+      f = g;
+    });
+    countCache[key] = f[length];
+    return f[length];
+  }
+
+  function countPasswords(length, classes, firstAllowed) {
+    if (length <= 0) return 0n;
+    for (var i = 0; i < classes.length; i++) if (classes[i][0] <= 0 && classes[i][1] > 0) return 0n;
+    if (!firstAllowed) return countFixed(length, classes.filter(function (c) { return c[0] > 0; }));
+    var total = 0n;
+    for (var idx = 0; idx < classes.length; idx++) {
+      if (classes[idx][0] <= 0 || firstAllowed[idx] <= 0) continue;
+      var rest = classes.filter(function (c) { return c[0] > 0; }).map(function (c) { return [c[0], c[1]]; });
+      var pos = classes.slice(0, idx).filter(function (c) { return c[0] > 0; }).length;
+      rest[pos][1] = Math.max(rest[pos][1] - 1, 0);
+      total += BigInt(firstAllowed[idx]) * countFixed(length - 1, rest);
+    }
+    return total;
+  }
+
+  function log2Big(n) {
+    if (n <= 0n) return 0;
+    var bl = n.toString(2).length;
+    if (bl <= 1000) return Math.log2(Number(n));
+    var shift = bl - 64;
+    return Math.log2(Number(n >> BigInt(shift))) + shift;
+  }
+
+  /* ------------------------------- policy ---------------------------------- */
+  var UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  var LOWER = "abcdefghijklmnopqrstuvwxyz";
+  var DIGITS = "0123456789";
+  var DEFAULT_SYMBOLS = "!#$%&()*+,-./:;<=>?@[]^_{|}~";
+  var AMBIGUOUS = "Il1|O0o`'\"";
+  var EXCEL_UNSAFE_FIRST = "=+-@'\t\r\n ";
+  var MIN_ACCEPTANCE = 1e-5;
+
+  function defaultPolicy() {
+    return { length: 16, upper: true, lower: true, digits: true, symbols: true,
+             minUpper: 1, minLower: 1, minDigits: 1, minSymbols: 1, symbolSet: DEFAULT_SYMBOLS,
+             exclude: "", noAmbiguous: false, startWithLetter: false, excelSafe: true };
+  }
+
+  function policyClasses(pol) {
+    var removed = pol.exclude + (pol.noAmbiguous ? AMBIGUOUS : "") + " \t\r\n";
+    var spec = [["upper", pol.upper, UPPER, pol.minUpper], ["lower", pol.lower, LOWER, pol.minLower],
+                ["digits", pol.digits, DIGITS, pol.minDigits], ["symbols", pol.symbols, pol.symbolSet, pol.minSymbols]];
+    var seen = "", out = [];
+    spec.forEach(function (s) {
+      var name = s[0], enabled = s[1], chars = s[2], min = s[3] | 0;
+      if (min < 0) throw new Error("Minimum " + name + " cannot be negative");
+      if (!enabled) return;
+      var kept = "";
+      for (var i = 0; i < chars.length; i++) {
+        var c = chars[i];
+        if (removed.indexOf(c) < 0 && seen.indexOf(c) < 0 && kept.indexOf(c) < 0) kept += c;
+      }
+      seen += kept;
+      if (!kept) {
+        if (min) throw new Error("No " + name + " characters left after exclusions, but " + min + " required");
+        return;
+      }
+      out.push({ name: name, chars: kept, min: min });
+    });
+    if (!out.length) throw new Error("No characters available: enable at least one character class");
+    return out;
+  }
+
+  function firstOk(pol, ch) {
+    if (pol.startWithLetter && !/[A-Za-z]/.test(ch)) return false;
+    if (pol.excelSafe && EXCEL_UNSAFE_FIRST.indexOf(ch) >= 0) return false;
+    return true;
+  }
+
+  function policyCounts(pol, length) {
+    var cls = policyClasses(pol);
+    var sizes = cls.map(function (c) { return [c.chars.length, c.min]; });
+    var first = cls.map(function (c) { var n = 0; for (var i = 0; i < c.chars.length; i++) if (firstOk(pol, c.chars[i])) n++; return n; });
+    return { classes: cls, sizes: sizes, first: first, count: countPasswords(length, sizes, first) };
+  }
+
+  function policyEntropy(pol) {
+    return log2Big(policyCounts(pol, pol.length).count);
+  }
+
+  function validatePolicy(pol) {
+    if (!(pol.length >= 1)) throw new Error("Length must be at least 1");
+    var pc = policyCounts(pol, pol.length);
+    var req = pc.classes.reduce(function (a, c) { return a + c.min; }, 0);
+    if (req > pol.length) throw new Error("Minimum character counts add up to " + req + ", more than the length " + pol.length);
+    if (pc.count === 0n) throw new Error("No password can satisfy this policy");
+    return pc;
+  }
+
+  function lengthForBits(pol, bits, floor, maxLength) {
+    maxLength = maxLength || 256;
+    var cls = policyClasses(pol);
+    var alpha = cls.reduce(function (a, c) { return a + c.chars.length; }, 0);
+    var minSum = cls.reduce(function (a, c) { return a + c.min; }, 0);
+    // Exact entropy never exceeds length*log2(alphabet), so start from that bound.
+    var start = Math.max(floor || 1, minSum, alpha > 1 ? Math.ceil(bits / Math.log2(alpha)) : 1, 1);
+    for (var L = start; L <= maxLength; L++) {
+      if (log2Big(policyCounts(pol, L).count) >= bits) return L;
+    }
+    throw new Error("Cannot reach " + bits + " bits within " + maxLength + " characters with this character set");
+  }
+
+  function secureRandInt(n) {
+    var limit = Math.floor(4294967296 / n) * n;
+    var buf = new Uint32Array(1);
+    for (;;) {
+      crypto.getRandomValues(buf);
+      if (buf[0] < limit) return buf[0] % n;
+    }
+  }
+
+  function generate(pol, randInt) {
+    randInt = randInt || secureRandInt;
+    var pc = validatePolicy(pol);
+    var alphabet = pc.classes.map(function (c) { return c.chars; }).join("");
+    var firstAlphabet = "";
+    for (var i = 0; i < alphabet.length; i++) if (firstOk(pol, alphabet[i])) firstAlphabet += alphabet[i];
+    if (!firstAlphabet) throw new Error("No character is allowed in the first position");
+    var acceptance = log2Big(pc.count) - Math.log2(firstAlphabet.length) - (pol.length - 1) * Math.log2(alphabet.length);
+    if (acceptance < Math.log2(MIN_ACCEPTANCE)) throw new Error("Minimum counts are too strict for this length: increase the length or lower the minimums");
+    for (;;) {
+      var pw = firstAlphabet[randInt(firstAlphabet.length)];
+      for (var j = 1; j < pol.length; j++) pw += alphabet[randInt(alphabet.length)];
+      var ok = pc.classes.every(function (c) {
+        var n = 0;
+        for (var k = 0; k < pw.length; k++) if (c.chars.indexOf(pw[k]) >= 0) n++;
+        return n >= c.min;
+      });
+      if (ok) return pw;
+    }
+  }
+
+  return {
+    EXPOSURE: EXPOSURE, PRIVILEGE: PRIVILEGE, HASH: HASH, ATTACKER: ATTACKER, CHARSETS: CHARSETS,
+    DEFAULT_SYMBOLS: DEFAULT_SYMBOLS, AMBIGUOUS: AMBIGUOUS,
+    defaultProfile: defaultProfile, defaultPolicy: defaultPolicy, assess: assess, onlineRate: onlineRate,
+    averageCrackSeconds: averageCrackSeconds, humanDuration: humanDuration, rateText: rateText,
+    countPasswords: countPasswords, log2Big: log2Big, policyClasses: policyClasses, policyEntropy: policyEntropy,
+    validatePolicy: validatePolicy, lengthForBits: lengthForBits, generate: generate
+  };
+})();
+if (typeof module !== "undefined") module.exports = CredCore;
+</script>
+
+<script id="ui">
+(function () {
+  "use strict";
+  var C = CredCore;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { assessment: null, rows: [], header: [] };
+
+  function fillSelect(id, table, selected) {
+    var sel = $(id);
+    Object.keys(table).forEach(function (k) {
+      var o = document.createElement("option");
+      o.value = k; o.textContent = table[k].label;
+      if (k === selected) o.selected = true;
+      sel.appendChild(o);
+    });
+    var hint = $(id + "-hint");
+    var upd = function () { hint.textContent = table[sel.value].desc; };
+    sel.addEventListener("change", upd); upd();
+  }
+
+  var dp = C.defaultProfile();
+  fillSelect("exposure", C.EXPOSURE, dp.exposure);
+  fillSelect("privilege", C.PRIVILEGE, dp.privilege);
+  fillSelect("hash", C.HASH, dp.hash);
+  fillSelect("attacker", C.ATTACKER, dp.attacker);
+
+  var CLASS_ROWS = [["upper", "Uppercase", "A–Z"], ["lower", "Lowercase", "a–z"], ["digits", "Digits", "0–9"], ["symbols", "Symbols", ""]];
+  var classesEl = $("classes");
+  CLASS_ROWS.forEach(function (r) {
+    var cap = r[0].charAt(0).toUpperCase() + r[0].slice(1);
+    classesEl.insertAdjacentHTML("beforeend",
+      '<label class="check cname"><input type="checkbox" id="use' + cap + '" checked> ' + r[1] + '</label>' +
+      '<span class="cset" id="set' + cap + '">' + r[2] + '</span>' +
+      '<input type="number" min="0" value="1" id="min' + cap + '" aria-label="Minimum ' + r[1].toLowerCase() + '" title="Minimum count">');
+  });
+  $("symbolSet").value = C.DEFAULT_SYMBOLS;
+
+  function num(id, fallback) { var v = parseFloat($(id).value); return isNaN(v) ? fallback : v; }
+
+  function readProfile() {
+    var rd = $("rotationDays").value.trim();
+    return {
+      exposure: $("exposure").value, privilege: $("privilege").value,
+      lockoutThreshold: Math.max(0, Math.floor(num("lockoutThreshold", 0))),
+      lockoutMinutes: Math.max(0, Math.floor(num("lockoutMinutes", 30))),
+      rateLimit: Math.max(0, num("rateLimit", 0)), mfa: $("mfa").checked, hash: $("hash").value,
+      attacker: $("attacker").value, sharedWith: Math.max(1, Math.floor(num("sharedWith", 1))),
+      monitored: $("monitored").checked, rotationDays: rd ? Math.max(1, Math.floor(parseFloat(rd) || 1)) : null
+    };
+  }
+
+  function readPolicy() {
+    var p = C.defaultPolicy();
+    ["upper", "lower", "digits", "symbols"].forEach(function (k) {
+      var cap = k.charAt(0).toUpperCase() + k.slice(1);
+      p[k] = $("use" + cap).checked;
+      p["min" + cap] = p[k] ? Math.max(0, Math.floor(num("min" + cap, 0))) : 0;
+      $("min" + cap).disabled = !p[k];
+    });
+    p.symbolSet = $("symbolSet").value;
+    p.exclude = $("exclude").value;
+    p.noAmbiguous = $("noAmbiguous").checked;
+    p.startWithLetter = $("startWithLetter").checked;
+    p.excelSafe = $("excelSafe").checked;
+    p.length = Math.floor(num("length", 16));
+    return p;
+  }
+
+  function readLabels() {
+    return $("labels").value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  function text(el, s) { el.textContent = s; }
+
+  function renderAssessment(a) {
+    text($("t-length"), a.lengths["letters + digits + symbols"]);
+    text($("t-rotation"), a.rotationDays);
+    text($("t-rotation-u"), a.rotationDays === a.recommendedRotationDays ? "days" : "days (rec. " + a.recommendedRotationDays + ")");
+    text($("t-bits"), a.requiredBits);
+    text($("t-score"), a.riskScore);
+    $("driver").innerHTML = "";
+    $("driver").append("Driven by ", Object.assign(document.createElement("b"), { textContent: a.driver }),
+      ". Minimum length for '" + a.profile.privilege + "' accounts is " + a.minLengthFloor + ".");
+
+    var max = Math.max(a.onlineBits, a.offlineBits, 1);
+    var att = $("attack"); att.innerHTML = "";
+    [["Online guessing", a.onlineRate, a.onlineBits], ["Offline cracking", a.offlineRate, a.offlineBits]].forEach(function (r) {
+      var l = document.createElement("span"); l.textContent = r[0] + " · " + C.rateText(r[1]);
+      var bar = document.createElement("span"); bar.className = "bar";
+      var fill = document.createElement("span"); fill.style.width = (100 * r[2] / max) + "%"; bar.appendChild(fill);
+      var v = document.createElement("span"); v.textContent = r[2] + " bits";
+      att.append(l, bar, v);
+    });
+
+    var fx = $("factors"); fx.innerHTML = "";
+    (a.riskFactors.length ? a.riskFactors : ["no risk factors"]).forEach(function (f) {
+      var li = document.createElement("li"); li.textContent = f;
+      if (!a.riskFactors.length) li.className = "none";
+      fx.appendChild(li);
+    });
+
+    var tb = $("lengths"); tb.innerHTML = "";
+    var rate = a.offlineRate || a.onlineRate;
+    C.CHARSETS.forEach(function (c) {
+      var len = a.lengths[c[0]];
+      var tr = document.createElement("tr");
+      [c[0], len + " chars", C.humanDuration(C.averageCrackSeconds(len * Math.log2(c[1]), rate))].forEach(function (v, i) {
+        var td = document.createElement("td"); td.textContent = v; if (i) td.className = "num"; tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    var tr = document.createElement("tr");
+    ["diceware passphrase", a.passphraseWords + " words", ""].forEach(function (v, i) {
+      var td = document.createElement("td"); td.textContent = v; if (i) td.className = "num"; tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+
+    var notes = $("notes"); notes.innerHTML = "";
+    a.notes.forEach(function (n) { var li = document.createElement("li"); li.textContent = n; notes.appendChild(li); });
+  }
+
+  function setStatus(kind, msg) { var s = $("policy-status"); s.className = "status " + kind; s.textContent = msg; }
+
+  function update() {
+    var a = null;
+    try { a = C.assess(readProfile()); renderAssessment(a); } catch (e) { setStatus("err", e.message); return; }
+    state.assessment = a;
+    var useProfile = $("useProfile").checked;
+    $("autoLength").disabled = !useProfile;
+    if (!useProfile) $("autoLength").checked = false;
+    $("length").disabled = useProfile && $("autoLength").checked;
+
+    var labels = readLabels();
+    $("count").disabled = labels.length > 0;
+    $("count-hint").textContent = labels.length ? "one per account name (" + labels.length + ")" : " ";
+
+    var classes = null;
+    try {
+      var pol = readPolicy();
+      classes = C.policyClasses(pol);
+      if (useProfile && $("autoLength").checked) {
+        pol.length = C.lengthForBits(pol, a.requiredBits, a.minLengthFloor);
+        $("length").value = pol.length;
+      }
+      C.validatePolicy(pol);
+      var bits = C.policyEntropy(pol);
+      if (useProfile) {
+        var meets = bits >= a.requiredBits && pol.length >= a.minLengthFloor;
+        var rec = C.lengthForBits(pol, a.requiredBits, a.minLengthFloor);
+        setStatus(meets ? "ok" : "warn",
+          (meets ? "✓ Meets the exposure profile. " : "⚠ Below the exposure profile: use at least " + rec + " characters. ") +
+          "Length " + pol.length + " gives " + bits.toFixed(1) + " bits; " + a.requiredBits + " required. Rotate every " + a.rotationDays + " days.");
+      } else {
+        setStatus("info", "Length " + pol.length + " gives " + bits.toFixed(1) + " bits of entropy.");
+      }
+      $("btn-generate").disabled = false;
+    } catch (e) {
+      setStatus("err", e.message);
+      $("btn-generate").disabled = true;
+    }
+    var sym = (classes || []).filter(function (c) { return c.name === "symbols"; })[0];
+    $("setSymbols").textContent = sym ? sym.chars : "";
+  }
+
+  function isoDate(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  function doGenerate() {
+    var pol = readPolicy();
+    var a = $("useProfile").checked ? state.assessment : null;
+    if (a && $("autoLength").checked) pol.length = C.lengthForBits(pol, a.requiredBits, a.minLengthFloor);
+    var labels = readLabels();
+    var count = labels.length || Math.min(1000, Math.max(1, Math.floor(num("count", 10))));
+    var pws = [];
+    try { for (var i = 0; i < count; i++) pws.push(C.generate(pol)); }
+    catch (e) { setStatus("err", e.message); return; }
+
+    var bits = C.policyEntropy(pol);
+    var header = [labels.length ? "Account" : "#", "Password", "Length", "Entropy (bits)"];
+    var extra = [];
+    if (a) {
+      var today = new Date();
+      var rotate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + a.rotationDays);
+      var meets = bits >= a.requiredBits && pol.length >= a.minLengthFloor ? "Yes" : "No";
+      var rate = a.offlineRate || a.onlineRate;
+      header = header.concat(["Required (bits)", "Meets policy", "Avg crack time", "Generated", "Rotate by"]);
+      extra = [String(a.requiredBits), meets, C.humanDuration(C.averageCrackSeconds(bits, rate)), isoDate(today), isoDate(rotate)];
+    }
+    state.header = header;
+    state.rows = pws.map(function (pw, i) {
+      return [labels[i] || String(i + 1), pw, String(pw.length), bits.toFixed(1)].concat(extra);
+    });
+    renderRows();
+  }
+
+  function renderRows() {
+    var box = $("result");
+    box.innerHTML = "";
+    var has = state.rows.length > 0;
+    ["btn-copy", "btn-csv", "btn-clear"].forEach(function (id) { $(id).disabled = !has; });
+    if (!has) { box.innerHTML = '<div class="empty">Generated passwords appear here.</div>'; return; }
+    var t = document.createElement("table");
+    var thead = t.createTHead().insertRow();
+    state.header.forEach(function (h) { var th = document.createElement("th"); th.textContent = h; thead.appendChild(th); });
+    var tb = t.createTBody();
+    state.rows.forEach(function (r) {
+      var tr = tb.insertRow();
+      r.forEach(function (v, i) {
+        var td = tr.insertCell();
+        if (i === 1) { td.className = "pw"; var s = document.createElement("span"); s.textContent = v; td.appendChild(s); }
+        else if (state.header[i] === "Meets policy") { td.textContent = v; td.className = v === "Yes" ? "yes" : "no"; }
+        else td.textContent = v;
+      });
+    });
+    box.appendChild(t);
+    box.classList.toggle("masked", $("mask").checked);
+  }
+
+  function allRows() { return ($("header").checked ? [state.header] : []).concat(state.rows); }
+
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg;
+    clearTimeout(toast.timer); toast.timer = setTimeout(function () { t.textContent = ""; }, 4000);
+  }
+
+  function copyText(s) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(s).catch(function () { return legacyCopy(s); });
+    }
+    return Promise.resolve(legacyCopy(s));
+  }
+  function legacyCopy(s) {
+    var ta = document.createElement("textarea");
+    ta.value = s; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.value = ""; document.body.removeChild(ta);
+    if (!ok) throw new Error("copy blocked");
+  }
+
+  $("btn-generate").addEventListener("click", doGenerate);
+  $("btn-copy").addEventListener("click", function () {
+    var tsv = allRows().map(function (r) { return r.join("\t"); }).join("\r\n") + "\r\n";
+    copyText(tsv).then(function () { toast("Copied " + state.rows.length + " rows. Paste into cell A1."); },
+                       function () { toast("Copy was blocked by the browser. Select the table and press Ctrl+C."); });
+  });
+  $("btn-csv").addEventListener("click", function () {
+    var csv = allRows().map(function (r) {
+      return r.map(function (v) { return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(",");
+    }).join("\r\n") + "\r\n";
+    var url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    var link = document.createElement("a");
+    link.href = url; link.download = "passwords-" + isoDate(new Date()) + ".csv";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast("CSV downloaded. Delete it once the passwords are in your vault.");
+  });
+  $("btn-clear").addEventListener("click", function () {
+    state.rows = []; state.header = []; renderRows();
+    copyText(" ").then(function () { toast("Cleared the table and the clipboard."); },
+                       function () { toast("Cleared the table. Clear your clipboard manually."); });
+  });
+  $("mask").addEventListener("change", function () { $("result").classList.toggle("masked", $("mask").checked); });
+  $("length").addEventListener("input", function () { $("autoLength").checked = false; });
+
+  document.querySelectorAll("input, select, textarea").forEach(function (el) {
+    if (el.id === "mask" || el.id === "header") return;
+    el.addEventListener("input", update);
+    el.addEventListener("change", update);
+  });
+  update();
+})();
+</script>
+</body>
+</html>
